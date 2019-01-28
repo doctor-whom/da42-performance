@@ -11,18 +11,37 @@ clear = lambda: os.system('clear')
 takeoff = pd.read_csv('takeoff.csv')
 
 
-#prompt inputs
+#interpolate first on weight, then pressure altitude, then temperature
+#calculate takeoff distance
+def takeoffDistance(tow, toPA, toT):
+	pass
+
+#calculate landing distance
+def landingDistance(lw, lPA, lT):
+	pass
+
+#calculate climb rates (up to 1000 AGL then to specified cruise altitude) and assuming adiabatic lapse rate
+def climb(tow, toPA, toT, cruise):
+	pass
+
+#calculate single engine ceiling assuming adiabatic lapse rate
+def ceiling(tow,toPA,toT):
+	pass
+
+
+#various helper input functions
 def getInputs():
 	tow = takeoff_weight()
 	lw = landing_weight(tow)[0]
 	toPA, toT = airport('takeoff')
 	lPA, lT = airport('landing')
+	cruiseAlt = cruise()
 	clear()
 
 	print ('TO Weight: ' + str(tow) + '\t LDG Weight:' + str(lw) + '\nTO PA: ' + str(toPA) + '\t\t LDG PA: ' \
-		+ str(lPA) + '\nTO Temp: ' + str(toT) + '\t\t LDG Temp: ' + str(lT))
+		+ str(lPA) + '\nTO Temp: ' + str(toT) + '\t\t LDG Temp: ' + str(lT) + '\n Selected Cruise Altitude: ' + str(cruiseAlt))
 
-#various helper input functions
+	return tow, lw, toPA, toT, lPA, lT
 def takeoff_weight():
 	prompt = 'Enter takeoff weight:'
 	max_tow = 3935
@@ -86,12 +105,30 @@ def airport(phase):
 				continue
 		except:
 			print('Invalid input, example: 1000, 29.98, 10')
+def cruise():
+	prompt = 'Enter cruise altitude'
+	while (True):
+		response = raw_input(prompt)
+		try:
+			if isinstance(float(response),Number):
+				return float(response)
+		except:
+			print('Invalid numerical input')
+
 
 #Calculate Pressure Altitude
 def pressureAlt(elevation,altimeter):
 	return int(elevation - (altimeter-29.92)*1000)
+#lapse rate 3ºC/1000ft
+def lapseRate(refAlt, refT, alt):
+	return refT - 3*(alt-refAlt)/1000
 #linear interpolator
 def interpolate(x1,y1,x2,y2,x):
 	return (float(y2)-float(y1))/(float(x2)-float(x1))*(x-x1) + y1
 
-getInputs()
+def main():
+	tow, lw, toPA, toT, lPA, lT, cruise = getInputs()
+
+
+
+main()
