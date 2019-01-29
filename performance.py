@@ -5,20 +5,53 @@ import sys
 from tabulate import tabulate
 import re
 import os
+import math
+import numpy as np
 
 clear = lambda: os.system('clear')
-#takeoff performance table
 takeoff = pd.read_csv('takeoff.csv')
-
+landing = pd.read_csv('landing.csv')
 
 #interpolate first on weight, then pressure altitude, then temperature
 #calculate takeoff distance
 def takeoffDistance(tow, toPA, toT):
-	pass
-
+	tuplePA = round(toPA,3)
+	tupleT = tuple(np.subtract(round(toT,1),(5,5)))
+	tupleWeight = ((3935,3500),(3500,3000))
+	gR = []; gR50 = []; out = []
+	#ground roll, ground roll + 50
+	if 3935 >= tow >= 3500:
+		for weight in tupleWeight[0]:
+			for alt in tuplePA:
+				for temp in tupleT:
+					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
+					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])
+	elif 3500 > tow >= 3000:
+		tupleWeight = (3500,3000)
+		for weight in tupleWeight:
+			for alt in tuplePA:
+				for temp in tupleT:
+					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
+					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])
+	for takeoffType in [gR,gR50]:
+		#Interpolate on Temp
+		tempInterpol = []
+		for index, pair in enumerate(np.array_split(takeoffType,4)):
+			tempInterpol.append(interpolate(tupleT[0],pair[0], tupleT[1],pair[1],toT))
+		#Interpolate on PA
+		PAInterpol = []
+		for index, pair in enumerate(np.array_split(tempInterpol,2)):
+			PAInterpol.append(interpolate(tuplePA[0],pair[0], tuplePA[1],pair[1],toPA))
+		#Interpolate on Mass
+		if 3935 >= tow >= 3500: 
+			out.append(interpolate(tupleWeight[0][0],PAInterpol[0],tupleWeight[0][1],PAInterpol[1],tow))
+		elif 3500 > tow >= 3000:
+			out.append(interpolate(tupleWeight[1][0],PAInterpol[0],tupleWeight[1][1],PAInterpol[1],tow))
+	return out
 #calculate landing distance
 def landingDistance(lw, lPA, lT):
-	pass
+	tuplePA = round(toPA,3)
+	tupleT = tuple(np.subtract(round(toT,1),(5,5)))
 
 #calculate climb rates (up to 1000 AGL then to specified cruise altitude) and assuming adiabatic lapse rate
 def climb(tow, toPA, toT, cruise):
@@ -41,7 +74,7 @@ def getInputs():
 	print ('TO Weight: ' + str(tow) + '\t LDG Weight:' + str(lw) + '\nTO PA: ' + str(toPA) + '\t\t LDG PA: ' \
 		+ str(lPA) + '\nTO Temp: ' + str(toT) + '\t\t LDG Temp: ' + str(lT) + '\n Selected Cruise Altitude: ' + str(cruiseAlt))
 
-	return tow, lw, toPA, toT, lPA, lT
+	return tow, lw, toPA, toT, lPA, lT, cruiseAlt
 def takeoff_weight():
 	prompt = 'Enter takeoff weight:'
 	max_tow = 3935
@@ -115,11 +148,13 @@ def cruise():
 		except:
 			print('Invalid numerical input')
 
-
+#to the nearest nth place
+def round(toRound, n):
+	return math.ceil(toRound/10**n)*10**n, math.ceil((toRound+10**n)/10**n)*10**n
 #Calculate Pressure Altitude
 def pressureAlt(elevation,altimeter):
 	return int(elevation - (altimeter-29.92)*1000)
-#lapse rate 3ºC/1000ft
+#lapse rate 3C/1000ft
 def lapseRate(refAlt, refT, alt):
 	return refT - 3*(alt-refAlt)/1000
 #linear interpolator
@@ -128,6 +163,7 @@ def interpolate(x1,y1,x2,y2,x):
 
 def main():
 	tow, lw, toPA, toT, lPA, lT, cruise = getInputs()
+	print takeoffDistance(tow, toPA, toT)
 
 
 
