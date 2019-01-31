@@ -14,7 +14,7 @@ takeoff = pd.read_csv('takeoff.csv')
 climbRate = pd.read_csv('climb.csv')
 landing = pd.read_csv('landing.csv')
 
-#interpolate first on weight, then pressure altitude, then temperature
+#interpolate first on temp, then pressure altitude, then mass
 #calculate takeoff distance
 def takeoffDistance(tow, toPA, toT):
 	tuplePA = multipleRound(toPA,1000)
@@ -64,23 +64,26 @@ def takeoffDistance(tow, toPA, toT):
 		elif 3500 > tow >= 3000:
 			out.append(interpolate(tupleWeight[1][0],PAInterpol[0],tupleWeight[1][1],PAInterpol[1],tow))
 	return out
-
 #calculate landing distance
 def landingDistance(lPA, lT):
 	tuplePA = multipleRound(lPA,1000)
 	if lPA < 0:
 		tuplePA = (0,1000)
-	tupleT = tuple(np.subtract(multipleRound(lT,10),(5,5)))
+	tupleT = tuple(np.add(multipleRound(lT,10),(5,5)))
+	lR = []; lR50 = []; out = []
 
-	lR = []; lR50 = []
-
-	for altitude in tupleAlt:
+	for alt in tuplePA:
 		for temp in tupleT:
-			lR.append(landing.loc[(landing.Temp == temp) & (landing.PA == altitude)]['Ground Roll'].iloc[0])
-			lR50.append(landing.loc[(landing.Temp == temp) & (landing.PA == altitude)]['Ground Roll + 50ft'].iloc[0])
+			lR.append(landing.loc[(landing.Temp == temp) & (landing.PA == alt)]['Ground Roll'].iloc[0])
+			lR50.append(landing.loc[(landing.Temp == temp) & (landing.PA == alt)]['Ground Roll + 50ft'].iloc[0])
+	#Interpolate on temp then PA
+	for takeoffType in [lR,lR50]:
+		tempInterpol = []
+		for index, pair in enumerate(np.array_split(takeoffType,2)):
+			tempInterpol.append(interpolate(tuplePA[0],pair[0],tuplePA[1],pair[1],lPA))
+		out.append(interpolate(tupleT[0],tempInterpol[0],tupleT[1],tempInterpol[1],lT))
 
-	print lR, lR50
-
+	return out[0],out[1]
 #calculate climb rates (up to 1000 AGL then to specified cruise altitude) and assuming adiabatic lapse rate
 def climb(tow, toPA, toT, cruise):
 	tupleWeight = ((3935,3500),(3500,3000))
@@ -112,20 +115,17 @@ def climb(tow, toPA, toT, cruise):
 				tempInterpol.append(interpolate(tupleTemp[0],pair[0], tupleTemp[1], pair[1], point[1]))
 			# Interpolate on PA
 			PAInterpol = []
-			for index, pair in enumerate(np.array_split(climbType,2)):
+			for index, pair in enumerate(np.array_split(tempInterpol,2)):
 				PAInterpol.append(interpolate(tupleAlt[0],pair[0], tupleAlt[1], pair[1], point[0]))
 			# Interpolate on Mass
 			out[idx].append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
-
 	# out: [airport, airport + 1000, cruise][T/O, MCP, OEI]
 	# T/O climb average to 1000 AGL, MCP climb between 1000 AGL and cruise,  OEI climb to 1000 AGL
-	return np.mean(out[0][0:1]), np.mean(out[1][1:2]), np.mean(out[2][0:1])
-
+	return np.mean(out[0][0:2]), np.mean(out[1][1:3]), np.mean(out[2][0:2])
 
 #calculate single engine ceiling assuming adiabatic lapse rate
 def ceiling(tow,toPA,toT):
 	pass
-
 
 #various helper input functions
 def getInputs():
@@ -198,7 +198,7 @@ def airport(phase):
 			altimeter = float(re.split(',',response)[1])
 			temp = float(re.split(',',response)[2])
 			if 25 <= altimeter <= 35 and -35 <= temp <= 45 and pressureAlt(elev,altimeter) <= 10000:
-				return pressureAlt(elev,altimeter),temp
+				return pressureAlt(elev,altimeter), temp
 			else:
 				print('Invalid altimeter setting or temperature out of limits')
 				continue
@@ -232,16 +232,16 @@ def interpolate(x1,y1,x2,y2,x):
 
 def main():
 	tow, lw, toPA, toT, lPA, lT, cruise = getInputs()
-	groundRoll, groundRoll50 = takeoffDistance(tow, toPA, toT)
+	TOgroundRoll, TOgroundRoll50 = takeoffDistance(tow, toPA, toT)
 	tOClimb, cruiseClimb, OEIClimb = climb(tow,toPA, toT, cruise)
-	landing(lw,lT)
+	LDGgroundRoll, LDGgroundRoll50 = landingDistance(lPA,lT)
 
-	print ('Ground Roll: ' + str(int(groundRoll))); print ('Ground Roll + 50\': ' + str(int(groundRoll50)))
+	print ('T/O Ground Roll: ' + str(int(TOgroundRoll)) +'\t\t Landing Ground Roll: ' \
+		+ str(int(LDGgroundRoll)) + '\nT/O Ground Roll + 50\': ' + str(int(TOgroundRoll50))+'\t Landing Ground Roll + 50\': ' \
+		+ str(int(LDGgroundRoll50)) +'\nAccelerate Stop Distance: ' + str(int(TOgroundRoll50)+int(LDGgroundRoll50)) )
 	
-	print ('T/O Climb: ' + str(int(tOClimb)) +' ft/min \t\t\t' + str(int(tOClimb*0.66)) +' ft/nmi\n' + \
+	print ('\nT/O Climb: ' + str(int(tOClimb)) +' ft/min \t\t\t' + str(int(tOClimb*0.66)) +' ft/nmi\n' + \
 		'Cruise Climb: ' + str(int(cruiseClimb)) + ' ft/min\nOEI Climb to 1000 AGL: ' + str(int(OEIClimb))+ \
 		' ft/min\t' + str(int(OEIClimb*0.66))+ ' ft/nmi')
-
-
 
 main()
