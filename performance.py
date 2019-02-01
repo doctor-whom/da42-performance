@@ -7,6 +7,7 @@ import re
 import os
 import math
 import numpy as np
+from scipy import stats
 
 clear = lambda: os.system('clear')
 
@@ -124,9 +125,43 @@ def climb(tow, toPA, toT, cruise):
 	return np.mean(out[0][0:2]), np.mean(out[1][1:3]), np.mean(out[2][0:2])
 
 #calculate single engine ceiling assuming adiabatic lapse rate
-def ceiling(tow,toPA,toT):
-	pass
+def ceiling(mass,PA,T):
+	tupleWeight = ((3935,3500),(3500,3000))
+	seedAltitude = np.arange(0,18000,step=100)
+	tupleWeightMax = (3935,3500); tupleWeightMin = (3500,3000); tupleWeight = (0,0)
 
+	if 3935 >= mass >= 3500:
+			tupleWeight = tupleWeightMax
+	elif 3500 > mass >= 3000:
+			tupleWeight = tupleWeightMin
+
+	while(True):
+		for altitude in seedAltitude:
+			tempAloft = lapseRate(PA, T, altitude)
+			tupleAlt = multipleRound(altitude,1000)
+			tupleT = multipleRound(tempAloft,5)
+
+			altOut = []
+
+			for alt in tupleAlt:
+				for weight in tupleWeight:
+					x = climbRate.loc[(climbRate.PA == alt)&(climbRate.Weight == weight)]['Temp'].values
+					y = climbRate.loc[(climbRate.PA == alt)&(climbRate.Weight == weight)]['OEI Climb Rate'].values
+
+					slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
+
+					altOut.append(slope*tempAloft + intercept)
+
+			upperMass = interpolate(tupleAlt[0],altOut[0],tupleAlt[1],altOut[2],altitude)
+			lowerMass = interpolate(tupleAlt[0],altOut[1],tupleAlt[1],altOut[3],altitude)
+
+			seedClimb = interpolate(tupleWeight[0],upperMass,tupleWeight[1],lowerMass,mass)
+
+			if seedClimb < 50:
+				return seedClimb, altitude
+				break
+		break
+	
 #various helper input functions
 def getInputs():
 	tow = takeoff_weight()
@@ -218,6 +253,8 @@ def cruise():
 def multipleRound(x,n):
 	if x%n != 0:
 		return x-(x%n), x + (-x%n)
+	elif x == 0:
+		return x,n
 	else:
 		return x-n,x
 #Calculate Pressure Altitude
@@ -235,6 +272,8 @@ def main():
 	TOgroundRoll, TOgroundRoll50 = takeoffDistance(tow, toPA, toT)
 	tOClimb, cruiseClimb, OEIClimb = climb(tow,toPA, toT, cruise)
 	LDGgroundRoll, LDGgroundRoll50 = landingDistance(lPA,lT)
+	climbRateCeilingTO, OEICeilingTO = ceiling(tow,toPA,toT)
+	climbRateCeilingLDG, OEICeilingLDG = ceiling(lw,lPA,lT)
 
 	print ('T/O Ground Roll: ' + str(int(TOgroundRoll)) +'\t\t Landing Ground Roll: ' \
 		+ str(int(LDGgroundRoll)) + '\nT/O Ground Roll + 50\': ' + str(int(TOgroundRoll50))+'\t Landing Ground Roll + 50\': ' \
@@ -242,6 +281,13 @@ def main():
 	
 	print ('\nT/O Climb: ' + str(int(tOClimb)) +' ft/min \t\t\t' + str(int(tOClimb*0.66)) +' ft/nmi\n' + \
 		'Cruise Climb: ' + str(int(cruiseClimb)) + ' ft/min\nOEI Climb to 1000 AGL: ' + str(int(OEIClimb))+ \
-		' ft/min\t' + str(int(OEIClimb*0.66))+ ' ft/nmi')
+		' ft/min\t' + str(int(OEIClimb*0.66))+ ' ft/nmi\n')
+
+	print ('At T/O:\n Single Engine Ceiling: ' + str(int(OEICeilingTO)) + '\t Single Engine Ceiling Climb Rate: ' \
+		+ str(int(climbRateCeilingTO)))
+
+	print ('At LDG:\n Single Engine Ceiling: ' + str(int(OEICeilingLDG)) + '\t Single Engine Ceiling Climb Rate: ' \
+		+ str(int(climbRateCeilingLDG)))
+
 
 main()
