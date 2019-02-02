@@ -2,7 +2,6 @@ import pandas as pd
 from numbers import Number
 import argparse
 import sys
-from tabulate import tabulate
 import re
 import os
 import math
@@ -22,34 +21,21 @@ def takeoffDistance(tow, toPA, toT):
 	tupleT = tuple(np.add(multipleRound(toT,10),(5,5)))
 	tupleWeight = ((3935,3500),(3500,3000))
 	gR = []; gR50 = []; out = []
-	#ground roll, ground roll + 50
-	if 3935 >= tow >= 3500 and toPA >= 0:
-		for weight in tupleWeight[0]:
-			for alt in tuplePA:
-				for temp in tupleT:
-					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
-					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])
-	elif 3500 > tow >= 3000 and toPA >= 0:
-		for weight in tupleWeight[1]:
-			for alt in tuplePA:
-				for temp in tupleT:
-					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
-					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])
-	#in case negative pressure altitude, just use 0 and 1000 PA to linear extrapolate
-	elif 3935 >= tow >= 3500 and toPA < 0:
-		tuplePA = (0,1000)
-		for weight in tupleWeight[0]:
-			for alt in tuplePA:
-				for temp in tupleT:
-					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
-					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])
-	elif 3500 > tow >= 3000 and toPA < 0:
-		tuplePA = (0,1000)
-		for weight in tupleWeight[1]:
-			for alt in tuplePA:
-				for temp in tupleT:
-					gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
-					gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])			
+
+	if 3935 >= tow >= 3500:
+		tupleWeight = tupleWeight[0]
+	elif 3500 > tow >= 3000:
+		tupleWeight = tupleWeight[1]
+	if toPA < 0:
+		tupleAlt = (0,1000)
+
+	# interpolate on temp, alt then weight
+	for weight in tupleWeight:
+		for alt in tuplePA:
+			for temp in tupleT:
+				gR.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll'].iloc[0])
+				gR50.append(takeoff.loc[(takeoff.Weight == weight) & (takeoff.PA == alt) & (takeoff.Temp == temp)]['Ground Roll + 50ft'].iloc[0])		
+	
 	for takeoffType in [gR,gR50]:
 		#Interpolate on Temp
 		tempInterpol = []
@@ -61,9 +47,9 @@ def takeoffDistance(tow, toPA, toT):
 			PAInterpol.append(interpolate(tuplePA[0],pair[0], tuplePA[1],pair[1],toPA))
 		#Interpolate on Mass
 		if 3935 >= tow >= 3500: 
-			out.append(interpolate(tupleWeight[0][0],PAInterpol[0],tupleWeight[0][1],PAInterpol[1],tow))
+			out.append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
 		elif 3500 > tow >= 3000:
-			out.append(interpolate(tupleWeight[1][0],PAInterpol[0],tupleWeight[1][1],PAInterpol[1],tow))
+			out.append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
 	return out
 #calculate landing distance
 def landingDistance(lPA, lT):
@@ -91,14 +77,14 @@ def climb(tow, toPA, toT, cruise):
 	tempAloft = ((toPA, toT),(toPA + 1000, lapseRate(toPA, toT, toPA + 1000)),(cruise, lapseRate(toPA, toT, cruise)))
 	out = [[],[],[]]
 
+	if 3935 >= tow >= 3500:
+		tupleWeight = tupleWeight[0]
+	elif 3500 > tow >= 3000:
+		tupleWeight = tupleWeight[1]
+
 	for point in tempAloft:
 		tupleAlt = multipleRound(point[0],1000); tupleTemp = multipleRound(point[1],5);
-		tupleWeightMax = (3935,3500); tupleWeightMin = (3500,3000); tupleWeight = (0,0)
 		cR = []; cRMCP = []; cROEI = [];
-		if 3935 >= tow >= 3500:
-			tupleWeight = tupleWeightMax
-		elif 3500 > tow >= 3000 and toPA >= 0:
-			tupleWeight = tupleWeightMin
 		if toPA < 0:
 			tupleAlt = (0,1000)
 
@@ -123,7 +109,6 @@ def climb(tow, toPA, toT, cruise):
 	# out: [airport, airport + 1000, cruise][T/O, MCP, OEI]
 	# T/O climb average to 1000 AGL, MCP climb between 1000 AGL and cruise,  OEI climb to 1000 AGL
 	return np.mean(out[0][0:2]), np.mean(out[1][1:3]), np.mean(out[2][0:2])
-
 #calculate single engine ceiling assuming adiabatic lapse rate
 def ceiling(mass,PA,T):
 	tupleWeight = ((3935,3500),(3500,3000))
@@ -249,7 +234,7 @@ def cruise():
 		except:
 			print('Invalid numerical input')
 
-#to nearest multiples
+#return rounded tuple to nearest multiple
 def multipleRound(x,n):
 	if x%n != 0:
 		return x-(x%n), x + (-x%n)
