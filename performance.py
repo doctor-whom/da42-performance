@@ -262,7 +262,7 @@ def main():
 
 	print ('T/O Ground Roll: ' + str(int(TOgroundRoll)) +'\t\t Landing Ground Roll: ' \
 		+ str(int(LDGgroundRoll)) + '\nT/O Ground Roll + 50\': ' + str(int(TOgroundRoll50))+'\t Landing Ground Roll + 50\': ' \
-		+ str(int(LDGgroundRoll50)) +'\nAccelerate Stop Distance: ' + str(int(TOgroundRoll50)+int(LDGgroundRoll50)) )
+		+ str(int(LDGgroundRoll50)) +'\nAccelerate Stop Distance: ' + str((int(TOgroundRoll)+int(LDGgroundRoll))*1.1))
 	
 	print ('\nT/O Climb: ' + str(int(tOClimb)) +' ft/min \t\t\t' + str(int(tOClimb*0.66)) +' ft/nmi\n' + \
 		'Cruise Climb: ' + str(int(cruiseClimb)) + ' ft/min\nOEI Climb to 1000 AGL: ' + str(int(OEIClimb))+ \
