@@ -274,5 +274,4 @@ def main():
 	print ('At LDG:\n Single Engine Ceiling: ' + str(int(OEICeilingLDG)) + '\t Single Engine Ceiling Climb Rate: ' \
 		+ str(int(climbRateCeilingLDG)))
 
-
 main()
