@@ -46,10 +46,7 @@ def takeoffDistance(tow, toPA, toT):
 		for index, pair in enumerate(np.array_split(tempInterpol,2)):
 			PAInterpol.append(interpolate(tuplePA[0],pair[0], tuplePA[1],pair[1],toPA))
 		#Interpolate on Mass
-		if 3935 >= tow >= 3500: 
-			out.append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
-		elif 3500 > tow >= 3000:
-			out.append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
+		out.append(interpolate(tupleWeight[0],PAInterpol[0],tupleWeight[1],PAInterpol[1],tow))
 	return out
 #calculate landing distance
 def landingDistance(lPA, lT):
