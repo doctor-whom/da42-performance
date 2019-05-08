@@ -208,9 +208,9 @@ def landing_weight(tow):
 			print('Invalid numerical input')
 def airport(phase):
 	if phase == 'takeoff':
-		prompt= 'Enter takeoff field elevation, field altimeter and temperature in celcius. Example: 1000, 29.98, 10 \n'
+		prompt= 'Enter takeoff field elevation, field altimeter and temperature in celcius. Example: 1000, 29.92, 10 \n'
 	else:
-		prompt= 'Enter landing field elevation, field altimeter and temperature in celcius. Example: 1000, 29.98, 10 \n'
+		prompt= 'Enter landing field elevation, field altimeter and temperature in celcius. Example: 1000, 29.92, 10 \n'
 	while (True):
 		response = raw_input(prompt)
 		try:
@@ -255,6 +255,7 @@ def interpolate(x1,y1,x2,y2,x):
 def main():
 	tow, lw, toPA, toT, lPA, lT, cruise = getInputs()
 	TOgroundRoll, TOgroundRoll50 = takeoffDistance(tow, toPA, toT)
+	asd = int((TOgroundRoll + landingDistance(toPA,toT)[0])*1.1)
 	tOClimb, cruiseClimb, OEIClimb = climb(tow,toPA, toT, cruise)
 	LDGgroundRoll, LDGgroundRoll50 = landingDistance(lPA,lT)
 	climbRateCeilingTO, OEICeilingTO = ceiling(tow,toPA,toT)
@@ -262,10 +263,10 @@ def main():
 
 	print ('T/O Ground Roll: ' + str(int(TOgroundRoll)) +'\t\t Landing Ground Roll: ' \
 		+ str(int(LDGgroundRoll)) + '\nT/O Ground Roll + 50\': ' + str(int(TOgroundRoll50))+'\t Landing Ground Roll + 50\': ' \
-		+ str(int(LDGgroundRoll50)) +'\nAccelerate Stop Distance: ' + str((int(TOgroundRoll)+int(LDGgroundRoll))*1.1))
+		+ str(int(LDGgroundRoll50)) +'\nAccelerate Stop Distance: ' + str(asd))
 	
 	print ('\nT/O Climb: ' + str(int(tOClimb)) +' ft/min \t\t\t' + str(int(tOClimb*0.66)) +' ft/nmi\n' + \
-		'Cruise Climb: ' + str(int(cruiseClimb)) + ' ft/min\nOEI Climb to 1000 AGL: ' + str(int(OEIClimb))+ \
+		'Cruise Climb: ' + str(int(cruiseClimb)) + ' ft/min\t\t' + str(int(cruiseClimb*0.66)) +' ft/nmi\nOEI Climb to 1000 AGL: ' + str(int(OEIClimb))+ \
 		' ft/min\t' + str(int(OEIClimb*0.66))+ ' ft/nmi\n')
 
 	print ('At T/O:\n Single Engine Ceiling: ' + str(int(OEICeilingTO)) + '\t Single Engine Ceiling Climb Rate: ' \
